@@ -1,5 +1,5 @@
 import tensorflow as tf
-from Tools import SquaredError,CrossEntropy
+import Losses
 
 class Net(object):
     """
@@ -7,7 +7,8 @@ class Net(object):
     Simply to save some lines of code. All the difinitions are a little tiresome
     and apply to both.
     """
-    def __init__(self,shape = None, act_fn = tf.nn.relu, loss_fn = None,
+    def __init__(self,shape = None, 
+                 act_fn = tf.nn.relu, loss_fn = None,
                  batch_size = 50, dropout = False, keep_prob = 1.0,
                  learning_rate = 0.0005, decay = 1.0, momentum = 0.0, opt = tf.train.MomentumOptimizer,
                  summaries = False, log_dir = 'tmp/AE'):
@@ -32,6 +33,8 @@ class Net(object):
         self.summaries = summaries
         self.log_dir = log_dir
         
+        
+        
 class Discriminative(Net):
     """
     A discriminative network has;
@@ -39,11 +42,13 @@ class Discriminative(Net):
     - a loss that is the error between their output and the data labels.
     """
     def __init__(self,decoder,shape, 
-                 act_fn = tf.nn.relu,loss_fn = CrossEntropy,
+                 act_fn = tf.nn.relu,loss_fn = Losses.CrossEntropy,
                  batch_size = 50, dropout = False, keep_prob = 1.0,
                  learning_rate = 0.0005, decay = 1.0, momentum = 0.0, opt = tf.train.MomentumOptimizer,
                  summaries = False, log_dir = 'tmp/AE'):
+        
         Net.__init__(self, shape, act_fn, loss_fn, batch_size, dropout, keep_prob, learning_rate, decay, momentum, opt, summaries, log_dir)
+        
         self.decoder = decoder
     
         #Define all the variables and placeholders
@@ -54,10 +59,10 @@ class Discriminative(Net):
         
         #Build the computational graph
         with tf.name_scope('Discriminative'):
-            self.out = self.decoder(self.inputs)
-            self.error = self.loss_fn(self.out,self.onehot_labels)
-            #self.accuracy = 
-            self.train_step = self.opt.minimize(self.error)
+            self.output = self.decoder(self.inputs)
+            self.accuracy = tf.reduce_mean(tf.cast(tf.equal(tf.argmax(self.onehot_labels,1), tf.argmax(self.output,1)), tf.float32))
+            self.loss = self.loss_fn(self.output,self.onehot_labels)
+            self.train_step = self.opt.minimize(self.loss)
 
 class Generative(Net):
     """
@@ -83,7 +88,7 @@ class Generative(Net):
         with tf.name_scope('Generative'):
             self.bottle = self.encoder(self.inputs)
             self.out = self.decoder(self.bottle)
-            self.error = SquaredError(data,self.out)
+            self.error = Losses.SquaredError(data,self.out)
             self.train_step = self.opt.minimise(self.error)
             
 class Aversarial(Net):
